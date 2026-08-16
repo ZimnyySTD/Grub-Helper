@@ -14,6 +14,6 @@
 
 ---
 
-## 📜 License
+## License
 
 Grub Helper is distributed under the open-source **GPL-3.0 License**. See the [LICENSE](LICENSE) file for full details.
