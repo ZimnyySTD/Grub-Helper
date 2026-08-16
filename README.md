@@ -1,7 +1,6 @@
 # Grub Helper
 
-**Grub Helper** is a modern, easy-to-use Linux desktop application designed to manage your GRUB bootloader settings and themes across any Linux distribution (Ubuntu, Debian, Arch Linux, Fedora, openSUSE, etc.) without manually editing system configuration files.
-
+**Grub Helper** is a simple GUI application that makes configuring Grub Bootloader easier
 ---
 
 ## Features
