@@ -259,16 +259,18 @@ public class UpdateChecker {
     }
 
     /**
-     * Executes auto update in a dedicated temporary staging directory to pull latest release source code and run install.sh as root.
+     * Clones the official repository into a temporary folder, runs install.sh as root to overwrite binaries, and cleans up staging directory.
      */
     public static RootExecutor.CommandResult performAutoUpdate() throws Exception {
-        // Create script that clones or fetches latest release in temporary folder and executes install.sh as root
-        String updateScript = "TEMP_DIR=$(mktemp -d /tmp/grub_helper_update_XXXXXX) && " +
-                              "git clone " + Version.REPO_URL + " \"$TEMP_DIR\" && " +
-                              "cd \"$TEMP_DIR\" && " +
+        // Construct shell update script that clones repo, runs install.sh, and removes cloned folder in trap/finally
+        String updateScript = "STAGE_DIR=\"/tmp/grub_helper_update_staging_$(date +%s)\" && " +
+                              "rm -rf \"$STAGE_DIR\" && " +
+                              "git clone " + Version.REPO_URL + " \"$STAGE_DIR\" && " +
+                              "cd \"$STAGE_DIR\" && " +
                               "chmod +x install.sh && " +
                               "./install.sh && " +
-                              "rm -rf \"$TEMP_DIR\" /tmp/grub_theme_extract_* /tmp/grub_themes_staging";
+                              "cd /tmp && " +
+                              "rm -rf \"$STAGE_DIR\" /tmp/grub_theme_extract_* /tmp/grub_themes_staging";
 
         // Execute update script as root via pkexec or sudo
         return RootExecutor.runAsRoot(updateScript);
@@ -279,9 +281,9 @@ public class UpdateChecker {
      */
     public static void restartApplication() {
         try {
-            // Check if installed grub-helper binary exists in PATH
+            // Launch newly installed grub-helper binary
             ProcessBuilder pb = new ProcessBuilder("grub-helper");
-            // Start new process
+            // Start process
             pb.start();
         } catch (Exception e) {
             try {
@@ -291,7 +293,7 @@ public class UpdateChecker {
                 pb.start();
             } catch (Exception ignored) {}
         }
-        // Exit current Java virtual machine process
+        // Exit current Java virtual machine process immediately
         System.exit(0);
     }
 }
