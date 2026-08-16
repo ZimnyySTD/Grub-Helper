@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect x="8" y="8" width="112" height="112" rx="20" ry="20" fill="#2d3436"/>
+  <rect x="18" y="18" width="92" height="92" rx="10" ry="10" fill="#0984e3"/>
+  <text x="64" y="62" font-family="sans-serif" font-weight="bold" font-size="28" fill="#ffffff" text-anchor="middle">GRUB</text>
+  <text x="64" y="90" font-family="sans-serif" font-size="20" fill="#dfe6e9" text-anchor="middle">Helper</text>
+</svg>

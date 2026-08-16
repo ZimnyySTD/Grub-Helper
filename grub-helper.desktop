@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Grub Helper
+Comment=Manage GRUB Bootloader Configuration and Themes Easily
+Exec=grub-helper
+Icon=grub-helper
+Terminal=false
+Type=Application
+Categories=System;Settings;
+Keywords=grub;bootloader;theme;configuration;
