@@ -1,3 +1,14 @@
+### Application Preview
+
+| Main Interface | Theme Selector |
+| :-: | :-: |
+| ![Main Screen](1.png) | ![Themes](2.png) |
+
+| Config Editor | Settings |
+| :-: | :-: |
+| ![Config](3.png) | ![Settings](4.png) |
+
+
 # Grub Helper
 
 **Grub Helper** is a simple GUI application that makes configuring Grub Bootloader easier
