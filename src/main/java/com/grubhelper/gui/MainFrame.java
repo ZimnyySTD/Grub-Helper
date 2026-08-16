@@ -456,7 +456,8 @@ public class MainFrame extends JFrame {
             if (theme != null && theme.getThemeTxtFile() != null) {
                 configParser.setValue("GRUB_THEME", theme.getThemeTxtFile().getAbsolutePath());
                 syncParserToUI();
-                JOptionPane.showMessageDialog(this, "Theme set to: " + theme.getName() + ".\nClick 'Apply Changes & Update GRUB' to write to system.", "Theme Selected", JOptionPane.INFORMATION_MESSAGE);
+                showOutputLogDialog("Theme Selected: " + theme.getName(),
+                        "Active theme setting updated in configuration to:\n" + theme.getThemeTxtFile().getAbsolutePath() + "\n\nClick 'Apply Changes & Update GRUB' to apply system-wide.");
             }
         });
 
@@ -468,6 +469,22 @@ public class MainFrame extends JFrame {
         panel.add(rightPanel, BorderLayout.CENTER);
 
         return panel;
+    }
+
+    /**
+     * Helper dialog for showing detailed output logs in a monospaced scrollable text area.
+     */
+    private void showOutputLogDialog(String title, String logText) {
+        JTextArea area = new JTextArea(logText);
+        area.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        area.setEditable(false);
+        area.setMargin(new Insets(10, 10, 10, 10));
+
+        JScrollPane scroll = new JScrollPane(area);
+        scroll.setPreferredSize(new Dimension(650, 350));
+        scroll.setBorder(new LineBorder(COLOR_BORDER));
+
+        JOptionPane.showMessageDialog(this, scroll, title, JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
@@ -537,7 +554,7 @@ public class MainFrame extends JFrame {
                         UpdateChecker.restartApplication();
                     }
                 } else {
-                    JOptionPane.showMessageDialog(this, "Failed to update:\n" + result.stderr, "Update Error", JOptionPane.ERROR_MESSAGE);
+                    showOutputLogDialog("Update Error", "Failed to update:\n" + result.stderr + "\n\nStandard Output:\n" + result.stdout);
                 }
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Error during update: " + e.getMessage(), "Update Error", JOptionPane.ERROR_MESSAGE);
@@ -712,7 +729,7 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Saves GRUB configuration changes to disk and executes update-grub command as root.
+     * Saves GRUB configuration changes to disk and executes update-grub command as root displaying actual log output.
      */
     private void applyAndSave() {
         syncUIToParser();
@@ -732,10 +749,15 @@ public class MainFrame extends JFrame {
 
             if (confirm == JOptionPane.YES_OPTION) {
                 CommandResult result = RootExecutor.runAsRoot(applyCmd);
+                String fullLog = "Command Executed:\n" + applyCmd + "\n\n--- Standard Output ---\n" +
+                                 (result.stdout != null && !result.stdout.trim().isEmpty() ? result.stdout : "(No stdout returned)") +
+                                 "\n\n--- Standard Error ---\n" +
+                                 (result.stderr != null && !result.stderr.trim().isEmpty() ? result.stderr : "(No stderr returned)");
+
                 if (result.isSuccess()) {
-                    JOptionPane.showMessageDialog(this, "GRUB Configuration updated successfully!\n\nOutput:\n" + result.stdout, "Success", JOptionPane.INFORMATION_MESSAGE);
+                    showOutputLogDialog("GRUB Configuration Updated Successfully", fullLog);
                 } else {
-                    JOptionPane.showMessageDialog(this, "Error updating GRUB:\n" + result.stderr, "Error", JOptionPane.ERROR_MESSAGE);
+                    showOutputLogDialog("Error Updating GRUB", fullLog);
                 }
             }
 
