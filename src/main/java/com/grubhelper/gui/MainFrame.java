@@ -92,6 +92,9 @@ public class MainFrame extends JFrame {
     // Header button for triggering auto-update when available
     private JButton updateNowBtn;
 
+    // Holds fetched UpdateInfo from background update check
+    private UpdateChecker.UpdateInfo latestUpdateInfo;
+
     // Tracking variable to keep track of previous tab index for sync on tab switch
     private int previousTabIndex = 0;
 
@@ -583,13 +586,13 @@ public class MainFrame extends JFrame {
             protected void done() {
                 try {
                     // Get result from background task
-                    UpdateChecker.UpdateInfo info = get();
+                    latestUpdateInfo = get();
                     // If update is available, show update button in header
-                    if (info.updateAvailable) {
+                    if (latestUpdateInfo != null && latestUpdateInfo.updateAvailable) {
                         // Update status label text
-                        updateStatusLabel.setText("New Update Available: v" + info.latestVersion);
+                        updateStatusLabel.setText("New Update Available: v" + latestUpdateInfo.latestVersion);
                         // Update button label text
-                        updateNowBtn.setText("Update to v" + info.latestVersion);
+                        updateNowBtn.setText("Update to v" + latestUpdateInfo.latestVersion);
                         // Make update button visible
                         updateNowBtn.setVisible(true);
                     } else {
@@ -607,21 +610,24 @@ public class MainFrame extends JFrame {
      * Triggers auto-update process when user clicks update button and offers option to restart app.
      */
     private void performAppUpdate() {
+        // Get target version from latestUpdateInfo or default string
+        String targetVer = (latestUpdateInfo != null && latestUpdateInfo.latestVersion != null) ? latestUpdateInfo.latestVersion : "";
+
         // Prompt user for confirmation before performing update
         int confirm = JOptionPane.showConfirmDialog(this,
-                "A new version of Grub Helper is available.\nWould you like to download and install the update now?",
+                "A new version of Grub Helper (v" + targetVer + ") is available.\nWould you like to download and install the update now?",
                 "Update Grub Helper", JOptionPane.YES_NO_OPTION);
 
         // If user confirmed update
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                // Execute auto update shell commands as root
-                CommandResult result = UpdateChecker.performAutoUpdate();
+                // Execute auto update shell commands as root passing target version
+                CommandResult result = UpdateChecker.performAutoUpdate(targetVer);
                 // If update completed successfully
                 if (result.isSuccess()) {
                     // Prompt user to restart application immediately or later
                     int restartChoice = JOptionPane.showOptionDialog(this,
-                            "Grub Helper updated successfully!\n\nWould you like to restart the application now?",
+                            "Grub Helper updated successfully to v" + targetVer + "!\n\nWould you like to restart the application now?",
                             "Update Complete",
                             JOptionPane.YES_NO_OPTION,
                             JOptionPane.INFORMATION_MESSAGE,

@@ -259,14 +259,23 @@ public class UpdateChecker {
     }
 
     /**
-     * Clones the official repository into a temporary folder, runs install.sh as root to overwrite binaries, and cleans up staging directory.
+     * Clones the official repository into a temporary folder, checks out the release tag or branch, runs install.sh as root to overwrite binaries, and cleans up staging directory.
+     * @param targetVersion Target release version string (e.g., "1.0.1")
      */
-    public static CommandResult performAutoUpdate() throws Exception {
-        // Construct shell update script that clones repo, runs install.sh, and removes cloned folder in trap/finally
+    public static CommandResult performAutoUpdate(String targetVersion) throws Exception {
+        // Prepare target tag variants
+        String tag = (targetVersion != null && !targetVersion.trim().isEmpty()) ? targetVersion.trim() : "";
+        String vTag = tag.startsWith("v") || tag.startsWith("V") ? tag : "v" + tag;
+        String rawTag = tag.replaceAll("^[vV]", "");
+
+        // Construct shell update script that clones repo, checks out target tag/branch, runs install.sh, and removes cloned folder
         String updateScript = "STAGE_DIR=\"/tmp/grub_helper_update_staging_$(date +%s)\" && " +
+                              "export DEBIAN_FRONTEND=noninteractive && " +
                               "rm -rf \"$STAGE_DIR\" && " +
                               "git clone " + Version.REPO_URL + " \"$STAGE_DIR\" && " +
                               "cd \"$STAGE_DIR\" && " +
+                              "git fetch --all --tags && " +
+                              "(git checkout " + vTag + " 2>/dev/null || git checkout " + rawTag + " 2>/dev/null || git checkout origin/master 2>/dev/null || git checkout origin/main 2>/dev/null || true) && " +
                               "chmod +x install.sh && " +
                               "./install.sh && " +
                               "cd /tmp && " +

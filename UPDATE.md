@@ -6,7 +6,7 @@ This guide explains the developer release workflow for **Grub Helper** using Git
 
 ## Developer Release & Testing Guide
 
-To test code changes locally first, tag a release on GitHub, and verify that the application detects and installs the update automatically, follow these steps:
+To test code changes locally first, tag a release on GitHub, and verify that installed application instances detect and install the update automatically, follow these steps:
 
 ### Step 1: Local Development & Manual Testing
 1. Make code edits in your local repository workspace.
@@ -25,7 +25,8 @@ To test code changes locally first, tag a release on GitHub, and verify that the
 ---
 
 ### Step 2: Bump the Version Number in Source Code
-When you are ready to publish a new update:
+**Important**: When publishing a new release, you **MUST** update `Version.java` before committing and tagging the release. Otherwise, installed application instances will recompile the old version string.
+
 1. Update `Version.java`:
    Edit `src/main/java/com/grubhelper/util/Version.java`:
    ```java
@@ -68,6 +69,9 @@ When you are ready to publish a new update:
 4. If a newer release tag is found:
    - A green button **"Update Available: v1.0.1"** appears in the top header bar of the app interface.
    - Clicking **"Update Available"** prompts the user for confirmation.
-   - Upon user approval, `UpdateChecker.performAutoUpdate()` runs a root-elevated command executing:
-     `git fetch --all && git reset --hard origin/master && ./install.sh`
-   - The app automatically pulls the release commit, rebuilds `/usr/share/java/grub-helper/grub-helper.jar`, and cleans up temporary update files.
+   - Upon user approval, `UpdateChecker.performAutoUpdate("1.0.1")` runs a root-elevated command executing:
+     1. Clones the repository to a temporary staging folder (`/tmp/grub_helper_update_staging_...`).
+     2. Checks out the specific release tag `v1.0.1`.
+     3. Runs `./install.sh` as root to recompile and overwrite `/usr/share/java/grub-helper/grub-helper.jar` and system launchers.
+     4. Deletes the temporary staging folder.
+     5. Prompts the user to **"Restart Now"**, launching the updated `grub-helper` binary and closing the old process.
