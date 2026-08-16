@@ -78,7 +78,7 @@ public class UpdateChecker {
      */
     private static UpdateInfo checkGitHubReleasesAPI() {
         try {
-            // Create URL instance from GitHub Releases API URL
+            // Create URL instance from GitHub Releases API URL with cache-busting timestamp query parameter
             URL url = URI.create(Version.RELEASES_API_URL + "?t=" + System.currentTimeMillis()).toURL();
             // Open HttpURLConnection to remote endpoint
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -113,7 +113,7 @@ public class UpdateChecker {
 
                 // Convert JSON string
                 String json = sb.toString();
-                // Extract "tag_name" or "name" property
+                // Extract "tag_name" property
                 String tagName = extractJsonValue(json, "tag_name");
                 // If tag_name is empty, try "name"
                 if (tagName.isEmpty()) {
@@ -146,7 +146,7 @@ public class UpdateChecker {
      */
     private static UpdateInfo checkFallbackManifest() {
         try {
-            // Create URL instance from fallback manifest URL
+            // Create URL instance from fallback manifest URL with timestamp query parameter
             URL url = URI.create(Version.UPDATE_URL_FALLBACK + "?t=" + System.currentTimeMillis()).toURL();
             // Open HttpURLConnection
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -259,12 +259,39 @@ public class UpdateChecker {
     }
 
     /**
-     * Executes git pull/reset and install.sh script as root to perform auto update, followed by cleanup.
+     * Executes auto update in a dedicated temporary staging directory to pull latest release source code and run install.sh as root.
      */
     public static RootExecutor.CommandResult performAutoUpdate() throws Exception {
-        // Formulate update shell script string
-        String updateScript = "git fetch --all && (git reset --hard origin/master || git reset --hard origin/main || git pull); chmod +x install.sh; ./install.sh; rm -rf /tmp/grub_theme_extract_* /tmp/grub_themes_staging";
-        // Execute update script as root
+        // Create script that clones or fetches latest release in temporary folder and executes install.sh as root
+        String updateScript = "TEMP_DIR=$(mktemp -d /tmp/grub_helper_update_XXXXXX) && " +
+                              "git clone " + Version.REPO_URL + " \"$TEMP_DIR\" && " +
+                              "cd \"$TEMP_DIR\" && " +
+                              "chmod +x install.sh && " +
+                              "./install.sh && " +
+                              "rm -rf \"$TEMP_DIR\" /tmp/grub_theme_extract_* /tmp/grub_themes_staging";
+
+        // Execute update script as root via pkexec or sudo
         return RootExecutor.runAsRoot(updateScript);
+    }
+
+    /**
+     * Relaunches the application using the installed system command 'grub-helper' or java binary and exits current JVM process.
+     */
+    public static void restartApplication() {
+        try {
+            // Check if installed grub-helper binary exists in PATH
+            ProcessBuilder pb = new ProcessBuilder("grub-helper");
+            // Start new process
+            pb.start();
+        } catch (Exception e) {
+            try {
+                // Fallback: run system jar directly
+                ProcessBuilder pb = new ProcessBuilder("java", "-jar", "/usr/share/java/grub-helper/grub-helper.jar");
+                // Start fallback process
+                pb.start();
+            } catch (Exception ignored) {}
+        }
+        // Exit current Java virtual machine process
+        System.exit(0);
     }
 }

@@ -602,12 +602,12 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Triggers auto-update process when user clicks update button.
+     * Triggers auto-update process when user clicks update button and offers option to restart app.
      */
     private void performAppUpdate() {
         // Prompt user for confirmation before performing update
         int confirm = JOptionPane.showConfirmDialog(this,
-                "A new version of Grub Helper is available.\nWould you like to pull updates and reinstall now?",
+                "A new version of Grub Helper is available.\nWould you like to download and install the update now?",
                 "Update Grub Helper", JOptionPane.YES_NO_OPTION);
 
         // If user confirmed update
@@ -617,11 +617,24 @@ public class MainFrame extends JFrame {
                 RootExecutor.CommandResult result = UpdateChecker.performAutoUpdate();
                 // If update completed successfully
                 if (result.isSuccess()) {
-                    // Show success message dialog
-                    JOptionPane.showMessageDialog(this, "Grub Helper updated successfully!\nPlease restart the application.", "Update Complete", JOptionPane.INFORMATION_MESSAGE);
+                    // Prompt user to restart application immediately or later
+                    int restartChoice = JOptionPane.showOptionDialog(this,
+                            "Grub Helper updated successfully!\n\nWould you like to restart the application now?",
+                            "Update Complete",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.INFORMATION_MESSAGE,
+                            null,
+                            new String[]{"Restart Now", "Later"},
+                            "Restart Now");
+
+                    // If user selected Restart Now
+                    if (restartChoice == JOptionPane.YES_OPTION) {
+                        // Relaunch app and close current process
+                        UpdateChecker.restartApplication();
+                    }
                 } else {
                     // Show error message dialog with output
-                    JOptionPane.showMessageDialog(this, "Failed to update: " + result.stderr, "Update Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Failed to update:\n" + result.stderr, "Update Error", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception e) {
                 // Show exception error dialog
