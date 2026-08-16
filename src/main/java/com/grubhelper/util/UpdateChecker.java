@@ -15,7 +15,7 @@ import java.net.URI;
 import java.net.URL;
 
 /**
- * Utility class for checking remote updates and triggering auto-reinstallations.
+ * Utility class for checking remote updates via GitHub Releases API and triggering auto-reinstallations.
  */
 public class UpdateChecker {
 
@@ -48,36 +48,39 @@ public class UpdateChecker {
     }
 
     /**
-     * Checks remote GitHub version manifest to see if a newer version exists.
-     * Checks both master and main branches, and includes cache-busting headers.
+     * Checks remote GitHub Releases API endpoint for the latest tag/release.
+     * Falls back to raw version.json if no release is found.
      * @return UpdateInfo result object
      */
     public static UpdateInfo checkForUpdates() {
-        // Try master branch URL first, then fallback to main branch URL
-        String[] urls = new String[]{
-            Version.UPDATE_URL + "?t=" + System.currentTimeMillis(),
-            Version.UPDATE_URL_FALLBACK + "?t=" + System.currentTimeMillis()
-        };
-
-        for (String urlStr : urls) {
-            UpdateInfo info = fetchManifestFromUrl(urlStr);
-            if (info != null) {
-                return info;
-            }
+        // Try GitHub Releases API endpoint first
+        UpdateInfo releaseInfo = checkGitHubReleasesAPI();
+        // If release info was successfully fetched from GitHub Releases API
+        if (releaseInfo != null) {
+            // Return release update info
+            return releaseInfo;
         }
 
-        // Return fallback UpdateInfo indicating no updates found
+        // Fallback: check version.json raw manifest
+        UpdateInfo fallbackInfo = checkFallbackManifest();
+        // If fallback info is non-null
+        if (fallbackInfo != null) {
+            // Return fallback update info
+            return fallbackInfo;
+        }
+
+        // Return default UpdateInfo indicating no updates found
         return new UpdateInfo(false, Version.CURRENT_VERSION, "No updates found.", "");
     }
 
     /**
-     * Helper method to fetch and parse JSON manifest from a single URL.
+     * Fetches the latest release details from GitHub Releases API endpoint.
      */
-    private static UpdateInfo fetchManifestFromUrl(String urlStr) {
+    private static UpdateInfo checkGitHubReleasesAPI() {
         try {
-            // Create URL instance from string
-            URL url = URI.create(urlStr).toURL();
-            // Open HttpURLConnection to remote URL
+            // Create URL instance from GitHub Releases API URL
+            URL url = URI.create(Version.RELEASES_API_URL + "?t=" + System.currentTimeMillis()).toURL();
+            // Open HttpURLConnection to remote endpoint
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             // Set connection timeout to 4000ms
             conn.setConnectTimeout(4000);
@@ -85,48 +88,116 @@ public class UpdateChecker {
             conn.setReadTimeout(4000);
             // Set HTTP method to GET
             conn.setRequestMethod("GET");
-            // Set User-Agent header
+            // Set User-Agent header required by GitHub API
             conn.setRequestProperty("User-Agent", "Grub-Helper/" + Version.CURRENT_VERSION);
-            // Set Cache-Control header to prevent raw.githubusercontent CDN caching stale version.json
+            // Set Accept header for GitHub REST API v3
+            conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
+            // Set Cache-Control header to bypass CDN caching
             conn.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
-            // Set Pragma header for HTTP 1.0 proxies
-            conn.setRequestProperty("Pragma", "no-cache");
 
-            // Check if server returned 200 OK response
+            // Check if GitHub returned 200 OK
             if (conn.getResponseCode() == 200) {
-                // Open BufferedReader on connection input stream
+                // Open BufferedReader on stream
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                // Create StringBuilder to collect JSON response string
+                // Create StringBuilder to collect JSON response
                 StringBuilder sb = new StringBuilder();
-                // Declare line variable
+                // Declare line string
                 String line;
-                // Read lines from reader until EOF
+                // Read response lines
                 while ((line = reader.readLine()) != null) {
-                    // Append line to StringBuilder
+                    // Append line
                     sb.append(line);
                 }
                 // Close reader
                 reader.close();
 
-                // Convert StringBuilder to json String
+                // Convert JSON string
                 String json = sb.toString();
-                // Extract "version" value from json string
-                String latestVer = extractJsonValue(json, "version");
-                // Extract "changelog" value from json string
+                // Extract "tag_name" or "name" property
+                String tagName = extractJsonValue(json, "tag_name");
+                // If tag_name is empty, try "name"
+                if (tagName.isEmpty()) {
+                    tagName = extractJsonValue(json, "name");
+                }
+                // Strip leading 'v' or 'V' character if present (e.g. v1.0.1 -> 1.0.1)
+                String latestVer = tagName.replaceAll("^[vV]", "").trim();
+                // Extract "body" property for changelog
+                String changelog = extractJsonValue(json, "body");
+                // Extract "html_url" for download link
+                String htmlUrl = extractJsonValue(json, "html_url");
+
+                // Check if extracted version string is non-empty
+                if (!latestVer.isEmpty()) {
+                    // Compare current version against release tag version
+                    boolean available = isNewerVersion(Version.CURRENT_VERSION, latestVer);
+                    // Return UpdateInfo object
+                    return new UpdateInfo(available, latestVer, changelog, htmlUrl);
+                }
+            }
+        } catch (Exception ignored) {
+            // Catch network or API parsing errors gracefully
+        }
+        // Return null if GitHub Releases API query failed or returned no releases
+        return null;
+    }
+
+    /**
+     * Fallback method fetching version.json raw manifest.
+     */
+    private static UpdateInfo checkFallbackManifest() {
+        try {
+            // Create URL instance from fallback manifest URL
+            URL url = URI.create(Version.UPDATE_URL_FALLBACK + "?t=" + System.currentTimeMillis()).toURL();
+            // Open HttpURLConnection
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            // Set connection timeout
+            conn.setConnectTimeout(4000);
+            // Set read timeout
+            conn.setReadTimeout(4000);
+            // Set HTTP method to GET
+            conn.setRequestMethod("GET");
+            // Set User-Agent header
+            conn.setRequestProperty("User-Agent", "Grub-Helper/" + Version.CURRENT_VERSION);
+            // Set Cache-Control header
+            conn.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+
+            // Check response status
+            if (conn.getResponseCode() == 200) {
+                // Open reader
+                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                // Create StringBuilder
+                StringBuilder sb = new StringBuilder();
+                // Declare line variable
+                String line;
+                // Read lines
+                while ((line = reader.readLine()) != null) {
+                    // Append line
+                    sb.append(line);
+                }
+                // Close reader
+                reader.close();
+
+                // Convert JSON string
+                String json = sb.toString();
+                // Extract "version" string
+                String latestVer = extractJsonValue(json, "version").replaceAll("^[vV]", "").trim();
+                // Extract "changelog" string
                 String changelog = extractJsonValue(json, "changelog");
-                // Extract "downloadUrl" value from json string
+                // Extract "downloadUrl" string
                 String downloadUrl = extractJsonValue(json, "downloadUrl");
 
+                // Check if version string is non-empty
                 if (!latestVer.isEmpty()) {
-                    // Compare current version against remote version
+                    // Compare version
                     boolean available = isNewerVersion(Version.CURRENT_VERSION, latestVer);
-                    // Return new UpdateInfo instance
+                    // Return UpdateInfo object
                     return new UpdateInfo(available, latestVer, changelog, downloadUrl);
                 }
             }
         } catch (Exception ignored) {
-            // Catch connection or parsing errors gracefully
+            // Ignore exception
         }
+        // Return null if fallback manifest check failed
         return null;
     }
 
@@ -161,6 +232,10 @@ public class UpdateChecker {
     public static boolean isNewerVersion(String current, String latest) {
         // Return false if latest version string is null or empty
         if (latest == null || latest.trim().isEmpty()) return false;
+        // Clean leading v characters
+        current = current.replaceAll("^[vV]", "").trim();
+        latest = latest.replaceAll("^[vV]", "").trim();
+
         // Split current version string by dot delimiter
         String[] cParts = current.split("\\.");
         // Split latest version string by dot delimiter
@@ -184,11 +259,11 @@ public class UpdateChecker {
     }
 
     /**
-     * Executes git pull and install.sh script as root to perform auto update.
+     * Executes git pull/reset and install.sh script as root to perform auto update, followed by cleanup.
      */
     public static RootExecutor.CommandResult performAutoUpdate() throws Exception {
         // Formulate update shell script string
-        String updateScript = "git pull origin master || git pull origin main || git pull; chmod +x install.sh; ./install.sh";
+        String updateScript = "git fetch --all && (git reset --hard origin/master || git reset --hard origin/main || git pull); chmod +x install.sh; ./install.sh; rm -rf /tmp/grub_theme_extract_* /tmp/grub_themes_staging";
         // Execute update script as root
         return RootExecutor.runAsRoot(updateScript);
     }

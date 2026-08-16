@@ -12,7 +12,7 @@
   - Live screenshot previews for installed GRUB themes.
   - One-click active theme selection.
   - Built-in theme archive installer (`.zip`, `.tar.gz`, `.tar.xz`, `.tar`).
-- **Auto-Update System**: Notifies you when new updates are available and lets you update with a single click.
+- **Auto-Update System**: Checks GitHub Releases on startup, notifies you when new releases are available, and installs updates with one click.
 - **Cross-Distro Compatibility**: Auto-detects GRUB locations, theme directories, and update tools across distros.
 
 ---
@@ -40,4 +40,4 @@ Launch **Grub Helper** from your application menu or run from terminal:
 grub-helper
 ```
 
-For developer documentation and internal technical architecture, see [READ-DEV.md](READ-DEV.md).
+For developer documentation and internal technical architecture, see [READ-DEV.md](READ-DEV.md). For publishing releases, see [UPDATE.md](UPDATE.md).

@@ -21,7 +21,7 @@ src/main/java/com/grubhelper/
 │   └── ThemeManager.java     # Theme loader and archive extractor (.zip, .tar.gz, .tar.xz)
 └── util/
     ├── RootExecutor.java     # Executes privileged shell commands via pkexec or sudo
-    ├── UpdateChecker.java    # Asynchronous update checker and self-installer execution
+    ├── UpdateChecker.java    # Asynchronous GitHub Releases API update checker and self-installer
     └── Version.java          # Version constants and repository URLs
 ```
 
@@ -37,25 +37,9 @@ Grub Helper follows strict semantic versioning (`vX.Y.Z`):
 
 ---
 
-## 3. How the Update System Works
+## 3. How to Release & Test Updates
 
-### Workflow Overview
-
-1. **Local Developer Verification**:
-   - The developer builds and verifies code changes locally using `./install.sh` and the unit test suite (`CoreTestRunner.java`).
-   - If introducing a fix or feature, the developer increments the version in `Version.java` and `version.json`.
-   - The developer commits and pushes changes to `https://github.com/ZimnyySTD/Grub-Helper/`.
-
-2. **Client Update Detection**:
-   - On application startup, `MainFrame` launches a background worker thread (`SwingWorker`) executing `UpdateChecker.checkForUpdates()`.
-   - `UpdateChecker` fetches `https://raw.githubusercontent.com/ZimnyySTD/Grub-Helper/main/version.json`.
-   - `UpdateChecker.isNewerVersion()` parses version strings into integer arrays and compares numeric segments (`Major.Minor.Patch`).
-
-3. **Client Update Execution**:
-   - If a higher version is available, an **"Update Available: vX.Y.Z"** button appears in the application header.
-   - Clicking the button prompts the user for confirmation.
-   - Upon confirmation, `UpdateChecker.performAutoUpdate()` runs a root command executing `git pull` followed by `./install.sh`.
-   - The installer updates the source code, rebuilds the application JAR (`/usr/share/java/grub-helper/grub-helper.jar`), and refreshes system launcher files.
+For detailed step-by-step instructions on local testing, version bumping, and publishing GitHub Releases, see **[UPDATE.md](UPDATE.md)**.
 
 ---
 
