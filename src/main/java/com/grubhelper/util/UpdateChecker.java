@@ -49,32 +49,48 @@ public class UpdateChecker {
 
     /**
      * Checks remote GitHub version manifest to see if a newer version exists.
+     * Checks both master and main branches, and includes cache-busting headers.
      * @return UpdateInfo result object
      */
     public static UpdateInfo checkForUpdates() {
-        try {
-            // Check if local workspace is a git repository
-            File gitDir = new File(".git");
-            // If .git directory exists
-            if (gitDir.exists() && gitDir.isDirectory()) {
-                // Fetch git changes in background
-                ProcessBuilder pb = new ProcessBuilder("git", "fetch", "--dry-run");
-                // Start process
-                Process p = pb.start();
-                // Wait for process completion
-                p.waitFor();
-            }
+        // Try master branch URL first, then fallback to main branch URL
+        String[] urls = new String[]{
+            Version.UPDATE_URL + "?t=" + System.currentTimeMillis(),
+            Version.UPDATE_URL_FALLBACK + "?t=" + System.currentTimeMillis()
+        };
 
-            // Create URL instance from Version.UPDATE_URL string
-            URL url = URI.create(Version.UPDATE_URL).toURL();
+        for (String urlStr : urls) {
+            UpdateInfo info = fetchManifestFromUrl(urlStr);
+            if (info != null) {
+                return info;
+            }
+        }
+
+        // Return fallback UpdateInfo indicating no updates found
+        return new UpdateInfo(false, Version.CURRENT_VERSION, "No updates found.", "");
+    }
+
+    /**
+     * Helper method to fetch and parse JSON manifest from a single URL.
+     */
+    private static UpdateInfo fetchManifestFromUrl(String urlStr) {
+        try {
+            // Create URL instance from string
+            URL url = URI.create(urlStr).toURL();
             // Open HttpURLConnection to remote URL
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            // Set connection timeout to 3000ms
-            conn.setConnectTimeout(3000);
-            // Set read timeout to 3000ms
-            conn.setReadTimeout(3000);
+            // Set connection timeout to 4000ms
+            conn.setConnectTimeout(4000);
+            // Set read timeout to 4000ms
+            conn.setReadTimeout(4000);
             // Set HTTP method to GET
             conn.setRequestMethod("GET");
+            // Set User-Agent header
+            conn.setRequestProperty("User-Agent", "Grub-Helper/" + Version.CURRENT_VERSION);
+            // Set Cache-Control header to prevent raw.githubusercontent CDN caching stale version.json
+            conn.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+            // Set Pragma header for HTTP 1.0 proxies
+            conn.setRequestProperty("Pragma", "no-cache");
 
             // Check if server returned 200 OK response
             if (conn.getResponseCode() == 200) {
@@ -101,17 +117,17 @@ public class UpdateChecker {
                 // Extract "downloadUrl" value from json string
                 String downloadUrl = extractJsonValue(json, "downloadUrl");
 
-                // Compare current version against remote version
-                boolean available = isNewerVersion(Version.CURRENT_VERSION, latestVer);
-                // Return new UpdateInfo instance
-                return new UpdateInfo(available, latestVer, changelog, downloadUrl);
+                if (!latestVer.isEmpty()) {
+                    // Compare current version against remote version
+                    boolean available = isNewerVersion(Version.CURRENT_VERSION, latestVer);
+                    // Return new UpdateInfo instance
+                    return new UpdateInfo(available, latestVer, changelog, downloadUrl);
+                }
             }
         } catch (Exception ignored) {
             // Catch connection or parsing errors gracefully
         }
-
-        // Return fallback UpdateInfo indicating no updates found
-        return new UpdateInfo(false, Version.CURRENT_VERSION, "No updates found.", "");
+        return null;
     }
 
     /**
@@ -172,7 +188,7 @@ public class UpdateChecker {
      */
     public static RootExecutor.CommandResult performAutoUpdate() throws Exception {
         // Formulate update shell script string
-        String updateScript = "git pull origin main || git pull; chmod +x install.sh; ./install.sh";
+        String updateScript = "git pull origin master || git pull origin main || git pull; chmod +x install.sh; ./install.sh";
         // Execute update script as root
         return RootExecutor.runAsRoot(updateScript);
     }

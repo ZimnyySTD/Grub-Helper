@@ -15,6 +15,9 @@ public class Version {
     // Official GitHub repository URL
     public static final String REPO_URL = "https://github.com/ZimnyySTD/Grub-Helper/";
 
-    // Raw GitHub URL for checking remote version manifest updates
-    public static final String UPDATE_URL = "https://raw.githubusercontent.com/ZimnyySTD/Grub-Helper/main/version.json";
+    // Primary raw GitHub URL for checking remote version manifest updates (master branch)
+    public static final String UPDATE_URL = "https://raw.githubusercontent.com/ZimnyySTD/Grub-Helper/master/version.json";
+
+    // Fallback raw GitHub URL for checking remote version manifest updates (main branch)
+    public static final String UPDATE_URL_FALLBACK = "https://raw.githubusercontent.com/ZimnyySTD/Grub-Helper/main/version.json";
 }
