@@ -14,6 +14,10 @@
   - Built-in theme archive installer (`.zip`, `.tar.gz`, `.tar.xz`, `.tar`).
 - **Auto-Update System**: Checks GitHub Releases on startup, notifies you when new releases are available, and installs updates with one click.
 - **Cross-Distro Compatibility**: Auto-detects GRUB locations, theme directories, and update tools across distros.
+---
+
+> 🐧 **Compatibility Note:**
+> To check if your Linux distribution is supported out of the box, see **[Distros that should work](distros.md)**.
 
 ---
 
