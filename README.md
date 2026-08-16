@@ -1,10 +1,10 @@
 ### Application Preview
 
-| Main Interface | Theme Selector |
+| Main Interface | Config editor easy |
 | :-: | :-: |
 | ![Main Screen](1.png) | ![Themes](2.png) |
 
-| Config Editor | Settings |
+| Config Editor advanced | theme selector |
 | :-: | :-: |
 | ![Config](3.png) | ![Settings](4.png) |
 
