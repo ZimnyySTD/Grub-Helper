@@ -525,7 +525,7 @@ public class MainFrame extends JFrame {
                 CommandResult result = UpdateChecker.performAutoUpdate(targetVer);
                 if (result.isSuccess()) {
                     int restartChoice = JOptionPane.showOptionDialog(this,
-                            "Grub Helper updated successfully to v" + targetVer + "!\n\nWould you like to restart the application now?",
+                            "Grub Helper updated successfully to v" + targetVer + "!\n\nWould you like to restart the application now to load the changes?",
                             "Update Complete",
                             JOptionPane.YES_NO_OPTION,
                             JOptionPane.INFORMATION_MESSAGE,
