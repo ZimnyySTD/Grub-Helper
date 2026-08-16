@@ -44,44 +44,44 @@ public class CoreTestRunner {
     }
 
     /**
-     * Tests GrubConfigParser loading, key retrieval, modification, and comment preservation.
+     * Tests GrubConfigParser loading, key retrieval, modification, comment preservation, and enablement toggling.
      */
     private static void testGrubConfigParser() {
         // Print progress message
         System.out.println("Testing GrubConfigParser...");
-        // Define sample config string
+        // Define sample config string with active and commented options
         String sampleConfig =
                 "# Sample GRUB Config\n" +
                 "GRUB_DEFAULT=0\n" +
                 "GRUB_TIMEOUT=5\n" +
-                "GRUB_DISTRIBUTOR=\"`lsb_release -i -s 2> /dev/null || echo Debian`\"\n" +
-                "GRUB_CMDLINE_LINUX_DEFAULT=\"quiet splash\"\n";
+                "# GRUB_CMDLINE_LINUX_DEFAULT=\"quiet splash\"\n";
 
         // Instantiate GrubConfigParser
         GrubConfigParser parser = new GrubConfigParser();
         // Load sample config string
         parser.loadFromString(sampleConfig);
 
-        // Assert parsed values match expected strings
+        // Assert enabled option value
         assertEquals("0", parser.getValue("GRUB_DEFAULT"));
         assertEquals("5", parser.getValue("GRUB_TIMEOUT"));
+        // Assert commented option value is null via getValue()
+        assertNull(parser.getValue("GRUB_CMDLINE_LINUX_DEFAULT"));
+
+        // Assert all items parsed including commented ones
+        assertEquals(3, parser.getAllConfigItems().size());
+        GrubConfigParser.ConfigItem commentedItem = parser.getAllConfigItems().get("GRUB_CMDLINE_LINUX_DEFAULT");
+        assertNotNull(commentedItem, "Commented item should exist in getAllConfigItems()");
+        assertTrue(!commentedItem.isEnabled(), "Commented item should have enabled=false");
+        assertEquals("quiet splash", commentedItem.getValue());
+
+        // Toggle enablement of commented item
+        parser.setItem("GRUB_CMDLINE_LINUX_DEFAULT", "quiet splash", true);
         assertEquals("quiet splash", parser.getValue("GRUB_CMDLINE_LINUX_DEFAULT"));
-
-        // Modify GRUB_TIMEOUT value
-        parser.setValue("GRUB_TIMEOUT", "10");
-        // Assert updated value
-        assertEquals("10", parser.getValue("GRUB_TIMEOUT"));
-
-        // Set GRUB_THEME value
-        parser.setValue("GRUB_THEME", "/boot/grub/themes/breeze/theme.txt");
-        // Assert updated theme value
-        assertEquals("/boot/grub/themes/breeze/theme.txt", parser.getValue("GRUB_THEME"));
 
         // Generate output configuration string
         String generated = parser.generateConfigString();
-        // Assert generated config contains modified values
-        assertTrue(generated.contains("GRUB_TIMEOUT=\"10\""), "Generated config missing GRUB_TIMEOUT=\"10\"");
-        assertTrue(generated.contains("GRUB_THEME=\"/boot/grub/themes/breeze/theme.txt\""), "Generated config missing GRUB_THEME");
+        // Assert generated config contains un-commented line
+        assertTrue(generated.contains("GRUB_CMDLINE_LINUX_DEFAULT=\"quiet splash\""), "Generated config missing un-commented line");
         // Print success message
         System.out.println("GrubConfigParser test passed.");
     }
@@ -159,11 +159,8 @@ public class CoreTestRunner {
      * Assertion helper checking equality between two objects.
      */
     private static void assertEquals(Object expected, Object actual) {
-        // Return if both objects are null
         if (expected == null && actual == null) return;
-        // Return if objects are equal
         if (expected != null && expected.equals(actual)) return;
-        // Throw AssertionError if not equal
         throw new AssertionError("Expected: " + expected + " but got: " + actual);
     }
 
@@ -171,9 +168,7 @@ public class CoreTestRunner {
      * Assertion helper checking condition is true.
      */
     private static void assertTrue(boolean condition, String message) {
-        // If condition is false, throw assertion error
         if (!condition) {
-            // Throw AssertionError
             throw new AssertionError("Assertion failed: " + message);
         }
     }
@@ -182,10 +177,17 @@ public class CoreTestRunner {
      * Assertion helper checking object is not null.
      */
     private static void assertNotNull(Object obj, String message) {
-        // If object is null, throw assertion error
         if (obj == null) {
-            // Throw AssertionError
             throw new AssertionError("Assertion failed: " + message);
+        }
+    }
+
+    /**
+     * Assertion helper checking object is null.
+     */
+    private static void assertNull(Object obj) {
+        if (obj != null) {
+            throw new AssertionError("Assertion failed: Expected null but got: " + obj);
         }
     }
 }

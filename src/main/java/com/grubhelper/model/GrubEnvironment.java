@@ -2,10 +2,13 @@
 package com.grubhelper.model;
 
 // Import File class for filesystem operations
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.InputStreamReader;
 
 /**
- * Detects system GRUB directories, theme paths, and update commands across various Linux distributions.
+ * Detects system GRUB directories, theme paths, update commands, and system metadata across Linux distributions.
  */
 public class GrubEnvironment {
 
@@ -18,12 +21,21 @@ public class GrubEnvironment {
     // Default command name to update GRUB configuration
     private String updateGrubCommand = "update-grub";
 
+    // System Information fields
+    private String osName = "Linux";
+    private String osVersion = "";
+    private String kernelVersion = "";
+    private String architecture = "";
+    private String grubVersion = "GRUB 2";
+
     /**
      * Constructor initializes environment detection on instantiation.
      */
     public GrubEnvironment() {
         // Execute environment detection logic
         detectEnvironment();
+        // Detect system information details
+        detectSystemInfo();
     }
 
     /**
@@ -94,6 +106,68 @@ public class GrubEnvironment {
     }
 
     /**
+     * Inspects system files like /etc/os-release and uname commands to gather system metadata.
+     */
+    private void detectSystemInfo() {
+        // Read OS name from /etc/os-release
+        File osRelease = new File("/etc/os-release");
+        if (osRelease.exists()) {
+            try (BufferedReader br = new BufferedReader(new FileReader(osRelease))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (line.startsWith("PRETTY_NAME=")) {
+                        osName = unquote(line.substring("PRETTY_NAME=".length()).trim());
+                    } else if (line.startsWith("NAME=") && osName.equals("Linux")) {
+                        osName = unquote(line.substring("NAME=".length()).trim());
+                    } else if (line.startsWith("VERSION_ID=")) {
+                        osVersion = unquote(line.substring("VERSION_ID=".length()).trim());
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Read kernel version and architecture via uname
+        try {
+            Process p = new ProcessBuilder("uname", "-r", "-m").start();
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line = br.readLine();
+                if (line != null && !line.trim().isEmpty()) {
+                    String[] parts = line.trim().split("\\s+");
+                    if (parts.length >= 1) kernelVersion = parts[0];
+                    if (parts.length >= 2) architecture = parts[1];
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // Detect GRUB version string
+        String[] versionCmds = {"grub-editenv", "grub2-editenv", "grub-emu", "grub2-emu", "grub-install", "grub2-install"};
+        for (String cmd : versionCmds) {
+            if (isExecutableInPath(cmd)) {
+                try {
+                    Process p = new ProcessBuilder(cmd, "--version").start();
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                        String line = br.readLine();
+                        if (line != null && !line.trim().isEmpty()) {
+                            grubVersion = line.trim();
+                            break;
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    /**
+     * Helper to unquote string values.
+     */
+    private String unquote(String val) {
+        if (val.length() >= 2 && ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'")))) {
+            return val.substring(1, val.length() - 1);
+        }
+        return val;
+    }
+
+    /**
      * Helper method to check if a command exists and is executable in System PATH directories.
      */
     private boolean isExecutableInPath(String cmd) {
@@ -121,7 +195,6 @@ public class GrubEnvironment {
      * Gets the path to /etc/default/grub file.
      */
     public String getGrubConfigPath() {
-        // Return grubConfigPath string
         return grubConfigPath;
     }
 
@@ -129,7 +202,6 @@ public class GrubEnvironment {
      * Gets the path to GRUB themes directory.
      */
     public String getGrubThemesDir() {
-        // Return grubThemesDir string
         return grubThemesDir;
     }
 
@@ -137,7 +209,6 @@ public class GrubEnvironment {
      * Gets the GRUB boot directory path.
      */
     public String getGrubBootDir() {
-        // Return grubBootDir string
         return grubBootDir;
     }
 
@@ -145,7 +216,34 @@ public class GrubEnvironment {
      * Gets the update GRUB shell command.
      */
     public String getUpdateGrubCommand() {
-        // Return updateGrubCommand string
         return updateGrubCommand;
+    }
+
+    /**
+     * Gets the OS name string.
+     */
+    public String getOsName() {
+        return osName;
+    }
+
+    /**
+     * Gets the Linux Kernel version string.
+     */
+    public String getKernelVersion() {
+        return kernelVersion;
+    }
+
+    /**
+     * Gets the System Architecture string.
+     */
+    public String getArchitecture() {
+        return architecture;
+    }
+
+    /**
+     * Gets the GRUB version string.
+     */
+    public String getGrubVersion() {
+        return grubVersion;
     }
 }

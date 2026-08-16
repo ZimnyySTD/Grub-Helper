@@ -24,14 +24,53 @@ import java.util.Map;
 
 /**
  * Handles reading, parsing, and modifying /etc/default/grub configuration file.
- * Preserves existing comments and file formatting when editing key-value pairs.
+ * Preserves existing comments and file formatting while tracking enabled/disabled (# commented) state for every option.
  */
 public class GrubConfigParser {
 
+    /**
+     * Inner class representing a single GRUB configuration entry, including its enablement state.
+     */
+    public static class ConfigItem {
+        private String key;
+        private String value;
+        private boolean enabled;
+
+        public ConfigItem(String key, String value, boolean enabled) {
+            this.key = key;
+            this.value = value;
+            this.enabled = enabled;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public void setKey(String key) {
+            this.key = key;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public void setValue(String value) {
+            this.value = value;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
     // List storing raw lines from file to preserve comments and layout
     private final List<String> lines = new ArrayList<>();
-    // Ordered LinkedHashMap storing parsed configuration key-value pairs
-    private final LinkedHashMap<String, String> configMap = new LinkedHashMap<>();
+    // Ordered LinkedHashMap storing parsed configuration items (including commented ones)
+    private final LinkedHashMap<String, ConfigItem> configItems = new LinkedHashMap<>();
 
     /**
      * Default constructor for GrubConfigParser.
@@ -44,14 +83,10 @@ public class GrubConfigParser {
      * @throws IOException If reading fails
      */
     public void loadFromFile(File file) throws IOException {
-        // Clear previous raw lines list
         lines.clear();
-        // Clear previous key-value map entries
-        configMap.clear();
+        configItems.clear();
 
-        // Read all lines from file into String list
         List<String> fileLines = Files.readAllLines(file.toPath());
-        // Parse lines into internal structures
         parseLines(fileLines);
     }
 
@@ -60,44 +95,37 @@ public class GrubConfigParser {
      * @param content Raw configuration file text
      */
     public void loadFromString(String content) {
-        // Clear previous raw lines list
         lines.clear();
-        // Clear previous key-value map entries
-        configMap.clear();
+        configItems.clear();
 
-        // Split string into lines array and convert to list
         List<String> fileLines = Arrays.asList(content.split("\\r?\\n"));
-        // Parse lines into internal structures
         parseLines(fileLines);
     }
 
     /**
-     * Internal method to parse lines into configMap while preserving raw lines.
+     * Internal method to parse lines into configItems while preserving raw lines.
      */
     private void parseLines(List<String> fileLines) {
-        // Store raw lines in lines collection
         this.lines.addAll(fileLines);
-        // Loop through each line in file
         for (String line : fileLines) {
-            // Trim leading and trailing whitespace
             String trimmed = line.trim();
-            // Skip empty lines or comment lines starting with #
-            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
-                // Continue to next line
+            if (trimmed.isEmpty()) {
                 continue;
             }
-            // Locate index of equals sign delimiter
-            int eqIndex = trimmed.indexOf('=');
-            // If equals sign is found after first character
+
+            boolean enabled = !trimmed.startsWith("#");
+            String lineToParse = enabled ? trimmed : trimmed.substring(1).trim();
+
+            int eqIndex = lineToParse.indexOf('=');
             if (eqIndex > 0) {
-                // Extract setting key name
-                String key = trimmed.substring(0, eqIndex).trim();
-                // Extract setting value string
-                String value = trimmed.substring(eqIndex + 1).trim();
-                // Strip surrounding quotes for table display
+                String key = lineToParse.substring(0, eqIndex).trim();
+                String value = lineToParse.substring(eqIndex + 1).trim();
                 value = unquote(value);
-                // Put key and unquoted value into configMap
-                configMap.put(key, value);
+
+                // Only store valid GRUB_... or alphanumeric setting key names
+                if (key.startsWith("GRUB_") || key.matches("^[A-Za-z0-9_]+$")) {
+                    configItems.put(key, new ConfigItem(key, value, enabled));
+                }
             }
         }
     }
@@ -106,47 +134,67 @@ public class GrubConfigParser {
      * Helper method to strip outer double or single quotes from value string.
      */
     private String unquote(String val) {
-        // Check if value length is at least 2 characters
         if (val.length() >= 2) {
-            // Check if string starts and ends with matching quotes
             if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
-                // Return inner string substring without outer quotes
                 return val.substring(1, val.length() - 1);
             }
         }
-        // Return original value if unquoted
         return val;
     }
 
     /**
-     * Returns an unmodifiable map of parsed key-value settings.
+     * Returns an unmodifiable map of enabled key-value settings.
      * @return Map of setting keys and values
      */
     public Map<String, String> getConfigMap() {
-        // Return unmodifiable map wrapper around configMap
-        return Collections.unmodifiableMap(configMap);
+        LinkedHashMap<String, String> enabledMap = new LinkedHashMap<>();
+        for (Map.Entry<String, ConfigItem> entry : configItems.entrySet()) {
+            if (entry.getValue().isEnabled()) {
+                enabledMap.put(entry.getKey(), entry.getValue().getValue());
+            }
+        }
+        return Collections.unmodifiableMap(enabledMap);
     }
 
     /**
-     * Gets value string for a setting key or null if absent.
+     * Returns all configuration items including commented-out ones.
+     */
+    public Map<String, ConfigItem> getAllConfigItems() {
+        return Collections.unmodifiableMap(configItems);
+    }
+
+    /**
+     * Gets value string for an enabled setting key or null if absent/disabled.
      * @param key Setting key name
      * @return Value string or null
      */
     public String getValue(String key) {
-        // Return value from configMap
-        return configMap.get(key);
+        ConfigItem item = configItems.get(key);
+        return (item != null && item.isEnabled()) ? item.getValue() : null;
     }
 
     /**
-     * Sets or updates value for a key in both map and raw lines list.
+     * Sets or updates value for a key in both map and raw lines list, ensuring it is enabled.
      * @param key Setting key name
      * @param value Setting value string
      */
     public void setValue(String key, String value) {
-        // Update or insert key-value pair in configMap
-        configMap.put(key, value);
-        // Synchronize change into lines list
-        updateLinesKey(key, value);
+        setItem(key, value, true);
+    }
+
+    /**
+     * Sets key, value, and enabled state in both item map and raw lines list.
+     */
+    public void setItem(String key, String value, boolean enabled) {
+        ConfigItem item = configItems.get(key);
+        if (item == null) {
+            item = new ConfigItem(key, value, enabled);
+            configItems.put(key, item);
+        } else {
+            item.setValue(value);
+            item.setEnabled(enabled);
+        }
+        updateLinesKey(key, value, enabled);
     }
 
     /**
@@ -154,75 +202,78 @@ public class GrubConfigParser {
      * @param key Setting key name
      */
     public void removeKey(String key) {
-        // Remove key from configMap
-        configMap.remove(key);
-        // Remove matching line from raw lines list
+        configItems.remove(key);
         removeLineKey(key);
     }
 
     /**
-     * Synchronizes new key-value map changes while keeping comments and line ordering intact.
-     * @param newMap Map of new key-value pairs
+     * Updates config items from a list of ConfigItems, updating line enablement state.
      */
-    public void updateFromMap(Map<String, String> newMap) {
-        // List to hold keys present in configMap but missing in newMap
+    public void updateFromItems(List<ConfigItem> items) {
+        LinkedHashMap<String, ConfigItem> newMap = new LinkedHashMap<>();
+        for (ConfigItem item : items) {
+            newMap.put(item.getKey(), item);
+        }
+
         List<String> keysToRemove = new ArrayList<>();
-        // Find deleted keys
-        for (String k : configMap.keySet()) {
-            // Check if key is absent in new map
+        for (String k : configItems.keySet()) {
             if (!newMap.containsKey(k)) {
-                // Add missing key to removal list
                 keysToRemove.add(k);
             }
         }
-        // Iterate through keys to remove
         for (String k : keysToRemove) {
-            // Remove key
             removeKey(k);
         }
 
-        // Add or update entries from newMap
+        for (ConfigItem item : items) {
+            setItem(item.getKey(), item.getValue(), item.isEnabled());
+        }
+    }
+
+    /**
+     * Legacy helper updating map from plain key-value map.
+     */
+    public void updateFromMap(Map<String, String> newMap) {
+        List<String> keysToRemove = new ArrayList<>();
+        for (String k : configItems.keySet()) {
+            if (!newMap.containsKey(k)) {
+                keysToRemove.add(k);
+            }
+        }
+        for (String k : keysToRemove) {
+            removeKey(k);
+        }
+
         for (Map.Entry<String, String> entry : newMap.entrySet()) {
-            // Set value for key
             setValue(entry.getKey(), entry.getValue());
         }
     }
 
     /**
-     * Updates matching line in raw lines list or appends new line if key does not exist.
+     * Updates matching line in raw lines list (adding/removing leading #) or appends new line if key does not exist.
      */
-    private void updateLinesKey(String key, String value) {
-        // Format value string with double quotes
+    private void updateLinesKey(String key, String value, boolean enabled) {
         String formattedValue = formatValue(value);
-        // Boolean flag tracking whether line was found and updated
+        String newLineString = (enabled ? "" : "# ") + key + "=" + formattedValue;
         boolean updated = false;
 
-        // Iterate through raw lines list
         for (int i = 0; i < lines.size(); i++) {
-            // Trim current line
             String line = lines.get(i).trim();
-            // Check if line is a setting line (not a comment and contains '=')
-            if (!line.startsWith("#") && line.contains("=")) {
-                // Find equals sign index
-                int eqIndex = line.indexOf('=');
-                // Extract key from line
-                String lineKey = line.substring(0, eqIndex).trim();
-                // Check if line key matches target key
+            String lineToParse = line.startsWith("#") ? line.substring(1).trim() : line;
+
+            if (lineToParse.contains("=")) {
+                int eqIndex = lineToParse.indexOf('=');
+                String lineKey = lineToParse.substring(0, eqIndex).trim();
                 if (lineKey.equals(key)) {
-                    // Update raw line in list with key=formattedValue
-                    lines.set(i, key + "=" + formattedValue);
-                    // Set updated flag to true
+                    lines.set(i, newLineString);
                     updated = true;
-                    // Break loop
                     break;
                 }
             }
         }
 
-        // If key line was not found in existing lines
         if (!updated) {
-            // Append new line key=formattedValue to end of list
-            lines.add(key + "=" + formattedValue);
+            lines.add(newLineString);
         }
     }
 
@@ -230,21 +281,14 @@ public class GrubConfigParser {
      * Removes matching key line from raw lines list.
      */
     private void removeLineKey(String key) {
-        // Create iterator over raw lines list
         for (Iterator<String> it = lines.iterator(); it.hasNext(); ) {
-            // Trim line string
             String line = it.next().trim();
-            // Check if line is a setting line
-            if (!line.startsWith("#") && line.contains("=")) {
-                // Find equals sign index
-                int eqIndex = line.indexOf('=');
-                // Extract key from line
-                String lineKey = line.substring(0, eqIndex).trim();
-                // Check if key matches target key
+            String lineToParse = line.startsWith("#") ? line.substring(1).trim() : line;
+            if (lineToParse.contains("=")) {
+                int eqIndex = lineToParse.indexOf('=');
+                String lineKey = lineToParse.substring(0, eqIndex).trim();
                 if (lineKey.equals(key)) {
-                    // Remove current line from list
                     it.remove();
-                    // Break loop
                     break;
                 }
             }
@@ -255,14 +299,10 @@ public class GrubConfigParser {
      * Formats value with double quotes for GRUB config consistency.
      */
     private String formatValue(String val) {
-        // Return double quotes if value is null
         if (val == null) return "\"\"";
-        // Return as-is if value is already wrapped in quotes
         if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
-            // Value is already quoted
             return val;
         }
-        // Wrap value in double quotes escaping nested double quotes
         return "\"" + val.replace("\"", "\\\"") + "\"";
     }
 
@@ -271,14 +311,10 @@ public class GrubConfigParser {
      * @return Complete configuration text
      */
     public String generateConfigString() {
-        // Create StringBuilder for output string
         StringBuilder sb = new StringBuilder();
-        // Append each line followed by platform line separator
         for (String line : lines) {
-            // Append line and line separator
             sb.append(line).append(System.lineSeparator());
         }
-        // Return built configuration string
         return sb.toString();
     }
 
@@ -288,7 +324,6 @@ public class GrubConfigParser {
      * @throws IOException If writing fails
      */
     public void saveToFile(File file) throws IOException {
-        // Write byte contents of config string to file path
         Files.write(file.toPath(), generateConfigString().getBytes());
     }
 
@@ -297,7 +332,6 @@ public class GrubConfigParser {
      * @return List of raw line strings
      */
     public List<String> getRawLines() {
-        // Return new ArrayList holding raw lines copy
         return new ArrayList<>(lines);
     }
 }
