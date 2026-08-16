@@ -17,7 +17,7 @@
 ---
 
 > 🐧 **Compatibility Note:**
-> To check if your Linux distribution is supported out of the box, see **[Distros that should work](distros.md)**.
+> To check if your Linux distribution is supported out of the box, see **[Distros that should work](DISTROS.md)**.
 
 ---
 
