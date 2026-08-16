@@ -1,24 +1,19 @@
-### Application Preview
-
-| Main Interface | Config editor easy |
-| :-: | :-: |
-| ![Main Screen](1.png) | ![Themes](2.png) |
-
-| Config Editor advanced | theme selector |
-| :-: | :-: |
-| ![Config](3.png) | ![Settings](4.png) |
-
-
 # Grub Helper
 
-**Grub Helper** is a simple GUI application that makes configuring Grub Bootloader easier
+**Grub Helper** is a modern, easy-to-use Linux desktop application designed to manage your GRUB bootloader settings and themes across any Linux distribution (Ubuntu, Debian, Arch Linux, Fedora, openSUSE, etc.) without manually editing system configuration files.
+
 ---
 
 ## Features
 
--**easy and advanced config editor for beginners and advanced users.**
-
--**easy theme installer and selector to install or switch themes without hassle.**
+- **Dashboard (Easy Mode)**: Edit GRUB boot settings in an intuitive table format.
+- **Advanced Config Editor**: Direct raw editing of `/etc/default/grub` with automatic synchronization.
+- **Theme Manager**:
+  - Live screenshot previews for installed GRUB themes.
+  - One-click active theme selection.
+  - Built-in theme archive installer (`.zip`, `.tar.gz`, `.tar.xz`, `.tar`).
+- **Auto-Update System**: Checks GitHub Releases on startup, notifies you when new releases are available, and installs updates with one click.
+- **Cross-Distro Compatibility**: Auto-detects GRUB locations, theme directories, and update tools across distros.
 
 ---
 
@@ -44,7 +39,5 @@ Launch **Grub Helper** from your application menu or run from terminal:
 ```bash
 grub-helper
 ```
-
-## please note that Grub Helper was only tested on arch linux, so on other distros, there might be bugs. please leave feednback!
 
 For developer documentation and internal technical architecture, see [READ-DEV.md](READ-DEV.md). For publishing releases, see [UPDATE.md](UPDATE.md).
