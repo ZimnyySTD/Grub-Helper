@@ -17,7 +17,7 @@
 ## Features
 
 -**easy and advanced config editor for beginners and advanced users.**
----
+--
 -**easy theme installer and selector to install or switch themes without hassle.**
 
 ---
