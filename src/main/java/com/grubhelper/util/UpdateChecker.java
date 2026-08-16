@@ -261,7 +261,7 @@ public class UpdateChecker {
     /**
      * Clones the official repository into a temporary folder, runs install.sh as root to overwrite binaries, and cleans up staging directory.
      */
-    public static RootExecutor.CommandResult performAutoUpdate() throws Exception {
+    public static CommandResult performAutoUpdate() throws Exception {
         // Construct shell update script that clones repo, runs install.sh, and removes cloned folder in trap/finally
         String updateScript = "STAGE_DIR=\"/tmp/grub_helper_update_staging_$(date +%s)\" && " +
                               "rm -rf \"$STAGE_DIR\" && " +

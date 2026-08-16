@@ -9,6 +9,8 @@ import com.grubhelper.model.GrubEnvironment;
 import com.grubhelper.model.GrubTheme;
 // Import ThemeManager model for discovering and installing themes
 import com.grubhelper.model.ThemeManager;
+// Import CommandResult utility for process output execution results
+import com.grubhelper.util.CommandResult;
 // Import RootExecutor utility for executing root shell commands
 import com.grubhelper.util.RootExecutor;
 // Import UpdateChecker utility for auto-update checks
@@ -614,7 +616,7 @@ public class MainFrame extends JFrame {
         if (confirm == JOptionPane.YES_OPTION) {
             try {
                 // Execute auto update shell commands as root
-                RootExecutor.CommandResult result = UpdateChecker.performAutoUpdate();
+                CommandResult result = UpdateChecker.performAutoUpdate();
                 // If update completed successfully
                 if (result.isSuccess()) {
                     // Prompt user to restart application immediately or later
@@ -858,7 +860,7 @@ public class MainFrame extends JFrame {
                             environment.getGrubThemesDir());
 
                     // Execute copy command as root via pkexec/sudo
-                    RootExecutor.CommandResult result = RootExecutor.runAsRoot(copyCmd);
+                    CommandResult result = RootExecutor.runAsRoot(copyCmd);
                     // Check if command execution succeeded
                     if (!result.isSuccess()) {
                         // Throw exception if copy failed
@@ -910,7 +912,7 @@ public class MainFrame extends JFrame {
             // If user clicked YES
             if (confirm == JOptionPane.YES_OPTION) {
                 // Execute command as root via pkexec/sudo
-                RootExecutor.CommandResult result = RootExecutor.runAsRoot(applyCmd);
+                CommandResult result = RootExecutor.runAsRoot(applyCmd);
                 // Check if command succeeded
                 if (result.isSuccess()) {
                     // Show success dialog with process output
