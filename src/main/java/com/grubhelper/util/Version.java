@@ -10,7 +10,7 @@ package com.grubhelper.util;
  */
 public class Version {
     // Current release version string adhering to vX.Y.Z semantic versioning
-    public static final String CURRENT_VERSION = "1.0.3";
+    public static final String CURRENT_VERSION = "1.1.3";
 
     // Official GitHub repository clone URL
     public static final String REPO_URL = "https://github.com/ZimnyySTD/Grub-Helper.git";
