@@ -1,6 +1,8 @@
 package com.grubhelper.test;
 
 import com.grubhelper.model.*;
+import com.grubhelper.util.UpdateChecker;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.util.zip.ZipEntry;
@@ -12,6 +14,7 @@ public class CoreTestRunner {
         try {
             testGrubConfigParser();
             testThemeManager();
+            testUpdateCheckerVersionComparison();
             System.out.println("ALL TESTS PASSED SUCCESSFULLY!");
         } catch (Throwable t) {
             System.err.println("TEST FAILED:");
@@ -76,6 +79,16 @@ public class CoreTestRunner {
         assertTrue(theme.getPreviewImage().exists(), "Preview image file should exist");
 
         System.out.println("ThemeManager test passed.");
+    }
+
+    private static void testUpdateCheckerVersionComparison() {
+        System.out.println("Testing UpdateChecker version comparison...");
+        assertTrue(UpdateChecker.isNewerVersion("1.0.0", "1.0.1"), "1.0.1 should be newer than 1.0.0");
+        assertTrue(UpdateChecker.isNewerVersion("1.0.0", "1.1.0"), "1.1.0 should be newer than 1.0.0");
+        assertTrue(UpdateChecker.isNewerVersion("1.0.0", "2.0.0"), "2.0.0 should be newer than 1.0.0");
+        assertTrue(!UpdateChecker.isNewerVersion("1.0.0", "1.0.0"), "1.0.0 should not be newer than 1.0.0");
+        assertTrue(!UpdateChecker.isNewerVersion("1.1.0", "1.0.5"), "1.0.5 should not be newer than 1.1.0");
+        System.out.println("UpdateChecker version comparison test passed.");
     }
 
     private static void assertEquals(Object expected, Object actual) {
